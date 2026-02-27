@@ -1,6 +1,10 @@
 import sys
 import threading
-from display_maze import generate_maze, display_maze, solve_maze, rotate_wall_color, clear_maze_display, animate_path
+from display_maze import (
+    generate_maze, display_maze, solve_maze,
+    rotate_wall_color, clear_maze_display, animate_path,
+    load_config,
+)
 
 
 def display_menu():
@@ -17,7 +21,10 @@ def display_menu():
     return choice
 
 
-# --- Animation thread management ---
+# ─────────────────────────────────────────────
+#  Animation thread management
+# ─────────────────────────────────────────────
+
 anim_thread     = None
 anim_stop_event = None
 
@@ -27,7 +34,7 @@ def stop_animation():
     if anim_thread is not None and anim_thread.is_alive():
         anim_stop_event.set()
         anim_thread.join()
-    anim_thread = None
+    anim_thread     = None
     anim_stop_event = None
 
 
@@ -39,27 +46,42 @@ def start_animation(maze, path):
         target=animate_path,
         args=(maze, path),
         kwargs={"stop_event": anim_stop_event},
-        daemon=True
+        daemon=True,
     )
     anim_thread.start()
 
 
-# --- Init ---
-maze      = generate_maze()
+# ─────────────────────────────────────────────
+#  Startup: load config → generate first maze
+# ─────────────────────────────────────────────
+
+config = load_config()          # reads config.txt, falls back to defaults on error
+ROWS   = config["rows"]
+COLS   = config["cols"]
+
+maze      = generate_maze(rows=ROWS, cols=COLS)
 path      = solve_maze(maze)
 show_path = True
 
-# TOUJOURS clear avant display_maze -> curseur en (1,1) -> MAZE_TOP_ROW=1 correct
 clear_maze_display()
 display_maze(maze)
 start_animation(maze, path)
+
+# ─────────────────────────────────────────────
+#  Main loop
+# ─────────────────────────────────────────────
 
 while True:
     choice = display_menu()
 
     if choice == "1":
+        # Re-read config so a live edit of config.txt is picked up immediately
+        config = load_config()
+        ROWS   = config["rows"]
+        COLS   = config["cols"]
+
         stop_animation()
-        maze      = generate_maze()
+        maze      = generate_maze(rows=ROWS, cols=COLS)
         path      = solve_maze(maze)
         show_path = True
         clear_maze_display()
