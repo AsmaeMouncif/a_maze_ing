@@ -8,7 +8,7 @@ from display_maze import (
 
 
 def display_menu():
-    print("\n=== A_Maze_ing ===")
+    print("=== A_Maze_ing ===")
     print("1. Re-generate a new maze")
     print("2. Show/Hide path from entry to exit")
     print("3. Rotate maze colors")

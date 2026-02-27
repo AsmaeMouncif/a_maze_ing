@@ -5,8 +5,6 @@ import os
 from collections import deque
 
 RESET  = "\033[0m"
-ENTRY  = "\033[48;5;213m" + " " + RESET
-EXIT   = "\033[48;5;196m" + " " + RESET
 PATH   = "\033[48;5;232m" + " " + RESET
 BORDER = " "
 
@@ -183,6 +181,16 @@ def get_trace():
     return WALL_COLORS[current_color_index][1] + " " + RESET
 
 
+def get_entry():
+    """Entry marker: same color as trace."""
+    return WALL_COLORS[current_color_index][1] + " " + RESET
+
+
+def get_exit():
+    """Exit marker: same color as trace."""
+    return WALL_COLORS[current_color_index][1] + " " + RESET
+
+
 def rotate_wall_color():
     global current_color_index
     current_color_index = (current_color_index + 1) % len(WALL_COLORS)
@@ -313,6 +321,8 @@ def display_maze(maze, show_path=False, path=None):
     cols     = len(maze[0])
     wall     = get_wall()
     trace    = get_trace()
+    entry    = get_entry()
+    exit_    = get_exit()
     path_set = set(path) if path else set()
 
     print(BORDER * (cols + 2))
@@ -320,9 +330,9 @@ def display_maze(maze, show_path=False, path=None):
         line = BORDER
         for c, cell in enumerate(row):
             if cell == 'E':
-                line += ENTRY
+                line += entry
             elif cell == 'X':
-                line += EXIT
+                line += exit_
             elif show_path and (r, c) in path_set:
                 line += trace
             elif cell == 'W':
