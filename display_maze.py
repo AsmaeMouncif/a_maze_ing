@@ -1,8 +1,6 @@
 import random
 import time
 import sys
-import termios
-import tty
 from collections import deque
 
 RESET = "\033[0m"
@@ -25,31 +23,9 @@ WALL_COLORS = [
 
 current_color_index = 0
 
-# Ligne absolue (1-indexée) du terminal où commence le labyrinthe.
-# Mis à jour par display_maze() avant chaque affichage.
-maze_top_row = 1
-
-
-def _query_cursor_row():
-    """Interroge le terminal pour obtenir la ligne courante du curseur (1-indexée).
-    Retourne 1 en cas d'echec (terminal non interactif)."""
-    try:
-        fd = sys.stdin.fileno()
-        old = termios.tcgetattr(fd)
-        tty.setraw(fd)
-        sys.stdout.write("\033[6n")
-        sys.stdout.flush()
-        buf = ""
-        while True:
-            ch = sys.stdin.read(1)
-            buf += ch
-            if ch == "R":
-                break
-        termios.tcsetattr(fd, termios.TCSADRAIN, old)
-        row = int(buf[2:buf.index(";")])
-        return row
-    except Exception:
-        return 1
+# Toujours 1 : on fait systematiquement clear_maze_display() avant display_maze()
+# ce qui repositionne le curseur en (1,1).
+MAZE_TOP_ROW = 1
 
 
 def get_wall():
@@ -66,7 +42,9 @@ def rotate_wall_color():
 
 
 def clear_maze_display():
-    print("\033[2J\033[H", end="", flush=True)
+    # Efface l'ecran ET remet le curseur en (1,1)
+    sys.stdout.write("\033[2J\033[H")
+    sys.stdout.flush()
 
 
 def generate_maze(rows=21, cols=21):
@@ -127,17 +105,10 @@ def solve_maze(maze):
 
 
 def display_maze(maze, show_path=False, path=None):
-    """Affiche le labyrinthe et memorise la ligne absolue de depart."""
-    global maze_top_row
-
     cols     = len(maze[0])
     wall     = get_wall()
     trace    = get_trace()
     path_set = set(path) if path else set()
-
-    # Memoriser la ligne courante AVANT la bordure haute.
-    # La rangee r sera a maze_top_row + 1 + r dans le terminal.
-    maze_top_row = _query_cursor_row()
 
     print(BORDER * (cols + 2))
 
@@ -163,7 +134,10 @@ def display_maze(maze, show_path=False, path=None):
 def animate_path(maze, path, delay=0.03, stop_event=None):
     """Anime le chemin case par case avec positionnement absolu du curseur.
 
-    stop_event : threading.Event optionnel — stoppe l'animation si set().
+    Le labyrinthe commence toujours a la ligne 1 du terminal (apres un clear).
+    - ligne 1          : bordure haute
+    - ligne 2 + r      : rangee r du labyrinthe
+    - colonne c + 2    : 1 espace de bordure gauche + position 1-indexee
     """
     trace = get_trace()
 
@@ -174,13 +148,9 @@ def animate_path(maze, path, delay=0.03, stop_event=None):
         if maze[r][c] in ('E', 'X'):
             continue
 
-        # maze_top_row  -> bordure haute du labyrinthe
-        # +1            -> premiere rangee (r=0) du labyrinthe
-        # +r            -> rangee r
-        term_row = maze_top_row + 1 + r
-        term_col = c + 2   # 1 espace BORDER gauche + colonne 1-indexee
+        term_row = MAZE_TOP_ROW + 1 + r   # ligne 1 (bordure) + 1 + r
+        term_col = c + 2                   # bordure gauche + colonne 1-indexee
 
-        # Sauvegarde curseur -> position absolue -> ecriture -> restauration
         sys.stdout.write(f"\033[s\033[{term_row};{term_col}f{trace}\033[u")
         sys.stdout.flush()
         time.sleep(delay)

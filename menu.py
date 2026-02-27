@@ -11,7 +11,6 @@ def display_menu():
     print("4. Quit")
     choice = input("Choice? (1-4): ")
     while choice not in ("1", "2", "3", "4"):
-        # Remonter d'une ligne et l'effacer -> le prompt reste au meme endroit
         sys.stdout.write("\033[1A\033[2K")
         sys.stdout.flush()
         choice = input("Choice? (1-4): ")
@@ -48,9 +47,12 @@ def start_animation(maze, path):
 # --- Init ---
 maze      = generate_maze()
 path      = solve_maze(maze)
-show_path = False
+show_path = True
 
+# TOUJOURS clear avant display_maze -> curseur en (1,1) -> MAZE_TOP_ROW=1 correct
+clear_maze_display()
 display_maze(maze)
+start_animation(maze, path)
 
 while True:
     choice = display_menu()
@@ -59,9 +61,10 @@ while True:
         stop_animation()
         maze      = generate_maze()
         path      = solve_maze(maze)
-        show_path = False
+        show_path = True
         clear_maze_display()
         display_maze(maze)
+        start_animation(maze, path)
 
     elif choice == "2":
         stop_animation()
