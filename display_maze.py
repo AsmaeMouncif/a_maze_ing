@@ -1,12 +1,16 @@
 import random
+import time
+import sys
+import termios
+import tty
 from collections import deque
 
 RESET = "\033[0m"
 
-ENTRY  = "\033[48;5;213m" + "  " + RESET
-EXIT   = "\033[48;5;196m" + "  " + RESET
-PATH   = "\033[48;5;232m" + "  " + RESET
-BORDER = "  "
+ENTRY  = "\033[48;5;213m" + " " + RESET
+EXIT   = "\033[48;5;196m" + " " + RESET
+PATH   = "\033[48;5;232m" + " " + RESET
+BORDER = " "
 
 WALL_COLORS = [
     ("\033[47m",          "\033[100m",       "White",        "Gray"),
@@ -21,13 +25,39 @@ WALL_COLORS = [
 
 current_color_index = 0
 
+# Ligne absolue (1-indexée) du terminal où commence le labyrinthe.
+# Mis à jour par display_maze() avant chaque affichage.
+maze_top_row = 1
+
+
+def _query_cursor_row():
+    """Interroge le terminal pour obtenir la ligne courante du curseur (1-indexée).
+    Retourne 1 en cas d'echec (terminal non interactif)."""
+    try:
+        fd = sys.stdin.fileno()
+        old = termios.tcgetattr(fd)
+        tty.setraw(fd)
+        sys.stdout.write("\033[6n")
+        sys.stdout.flush()
+        buf = ""
+        while True:
+            ch = sys.stdin.read(1)
+            buf += ch
+            if ch == "R":
+                break
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+        row = int(buf[2:buf.index(";")])
+        return row
+    except Exception:
+        return 1
+
 
 def get_wall():
-    return WALL_COLORS[current_color_index][0] + "  " + RESET
+    return WALL_COLORS[current_color_index][0] + " " + RESET
 
 
 def get_trace():
-    return WALL_COLORS[current_color_index][1] + "  " + RESET
+    return WALL_COLORS[current_color_index][1] + " " + RESET
 
 
 def rotate_wall_color():
@@ -36,7 +66,7 @@ def rotate_wall_color():
 
 
 def clear_maze_display():
-    print("\033[2J\033[H", end="")
+    print("\033[2J\033[H", end="", flush=True)
 
 
 def generate_maze(rows=21, cols=21):
@@ -73,7 +103,7 @@ def solve_maze(maze):
                 end = (r, c)
 
     if not start or not end:
-        return set()
+        return []
 
     queue = deque([[start]])
     visited = {start}
@@ -83,7 +113,7 @@ def solve_maze(maze):
         r, c = path[-1]
 
         if (r, c) == end:
-            return set(path)
+            return path
 
         for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
             nr, nc = r + dr, c + dc
@@ -93,13 +123,21 @@ def solve_maze(maze):
                 visited.add((nr, nc))
                 queue.append(path + [(nr, nc)])
 
-    return set()
+    return []
 
 
 def display_maze(maze, show_path=False, path=None):
-    cols  = len(maze[0])
-    wall  = get_wall()
-    trace = get_trace()
+    """Affiche le labyrinthe et memorise la ligne absolue de depart."""
+    global maze_top_row
+
+    cols     = len(maze[0])
+    wall     = get_wall()
+    trace    = get_trace()
+    path_set = set(path) if path else set()
+
+    # Memoriser la ligne courante AVANT la bordure haute.
+    # La rangee r sera a maze_top_row + 1 + r dans le terminal.
+    maze_top_row = _query_cursor_row()
 
     print(BORDER * (cols + 2))
 
@@ -110,7 +148,7 @@ def display_maze(maze, show_path=False, path=None):
                 line += ENTRY
             elif cell == 'X':
                 line += EXIT
-            elif show_path and path and (r, c) in path:
+            elif show_path and (r, c) in path_set:
                 line += trace
             elif cell == 'W':
                 line += wall
@@ -120,3 +158,29 @@ def display_maze(maze, show_path=False, path=None):
         print(line)
 
     print(BORDER * (cols + 2))
+
+
+def animate_path(maze, path, delay=0.03, stop_event=None):
+    """Anime le chemin case par case avec positionnement absolu du curseur.
+
+    stop_event : threading.Event optionnel — stoppe l'animation si set().
+    """
+    trace = get_trace()
+
+    for r, c in path:
+        if stop_event is not None and stop_event.is_set():
+            return
+
+        if maze[r][c] in ('E', 'X'):
+            continue
+
+        # maze_top_row  -> bordure haute du labyrinthe
+        # +1            -> premiere rangee (r=0) du labyrinthe
+        # +r            -> rangee r
+        term_row = maze_top_row + 1 + r
+        term_col = c + 2   # 1 espace BORDER gauche + colonne 1-indexee
+
+        # Sauvegarde curseur -> position absolue -> ecriture -> restauration
+        sys.stdout.write(f"\033[s\033[{term_row};{term_col}f{trace}\033[u")
+        sys.stdout.flush()
+        time.sleep(delay)
