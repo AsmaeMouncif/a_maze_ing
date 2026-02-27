@@ -52,14 +52,20 @@ def start_animation(maze, path):
 
 
 # ─────────────────────────────────────────────
-#  Startup: load config → generate first maze
+#  Startup: load config — exit on any error
 # ─────────────────────────────────────────────
 
-config = load_config()          # reads config.txt, falls back to defaults on error
-ROWS   = config["rows"]
-COLS   = config["cols"]
+config = load_config()
+if config is None:
+    print("\033[91mFix config.txt and restart the program.\033[0m")
+    sys.exit(1)
 
-maze      = generate_maze(rows=ROWS, cols=COLS)
+ROWS  = config["rows"]
+COLS  = config["cols"]
+ENTRY = config["entry"]   # (row, col)
+EXIT  = config["exit"]    # (row, col)
+
+maze      = generate_maze(rows=ROWS, cols=COLS, entry=ENTRY, exit_=EXIT)
 path      = solve_maze(maze)
 show_path = True
 
@@ -75,13 +81,20 @@ while True:
     choice = display_menu()
 
     if choice == "1":
-        # Re-read config so a live edit of config.txt is picked up immediately
+        # Re-read config — exit immediately if it became invalid
         config = load_config()
-        ROWS   = config["rows"]
-        COLS   = config["cols"]
+        if config is None:
+            stop_animation()
+            print("\033[91mFix config.txt and restart the program.\033[0m")
+            sys.exit(1)
+
+        ROWS  = config["rows"]
+        COLS  = config["cols"]
+        ENTRY = config["entry"]
+        EXIT  = config["exit"]
 
         stop_animation()
-        maze      = generate_maze(rows=ROWS, cols=COLS)
+        maze      = generate_maze(rows=ROWS, cols=COLS, entry=ENTRY, exit_=EXIT)
         path      = solve_maze(maze)
         show_path = True
         clear_maze_display()
