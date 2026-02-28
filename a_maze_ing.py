@@ -1,0 +1,201 @@
+"""
+a_maze_ing.py — Entry point for A-Maze-ing.
+
+Usage:
+    python3 a_maze_ing.py config.txt
+
+Visual part:    display_maze.py
+Algorithm part: maze_generator.py  (MazeGenerator class)
+"""
+
+import sys
+import threading
+from typing import Optional
+
+from display_maze import (
+    display_maze,
+    rotate_wall_color,
+    clear_maze_display,
+    animate_path,
+    load_config,
+)
+from maze_generator import MazeGenerator
+from output_writer import write_output
+
+
+def build_maze(
+    rows: int,
+    cols: int,
+    entry: tuple[int, int],
+    exit_: tuple[int, int],
+    perfect: bool,
+    seed: Optional[int],
+) -> tuple[MazeGenerator, list[list[str]], list[tuple[int, int]]]:
+    """
+    Instantiate MazeGenerator and return generator, grid and solution.
+
+    Args:
+        rows:    Number of rows (odd integer).
+        cols:    Number of columns (odd integer).
+        entry:   (row, col) of the entry cell on the border.
+        exit_:   (row, col) of the exit cell on the border.
+        perfect: Whether to generate a perfect maze.
+        seed:    Random seed for reproducibility.
+
+    Returns:
+        Tuple of (MazeGenerator instance, 2D grid, solution path).
+    """
+    mg = MazeGenerator(
+        rows=rows,
+        cols=cols,
+        entry=entry,
+        exit_=exit_,
+        perfect=perfect,
+        seed=seed,
+    )
+    grid = mg.get_grid()
+    solution = mg.get_solution()
+    return mg, grid, solution
+
+
+def display_menu() -> str:
+    """
+    Print the interactive menu and return the validated user choice.
+
+    Returns:
+        A single character string: '1', '2', '3', or '4'.
+    """
+    print("=== A-Maze-ing ===")
+    print("1. Re-generate a new maze")
+    print("2. Show/Hide path from entry to exit")
+    print("3. Rotate maze colors")
+    print("4. Quit")
+    choice = input("Choice? (1-4): ")
+    while choice not in ("1", "2", "3", "4"):
+        sys.stdout.write("\033[1A\033[2K")
+        sys.stdout.flush()
+        choice = input("Choice? (1-4): ")
+    return choice
+
+
+# ─────────────────────────────────────────────
+#  Animation thread management
+# ─────────────────────────────────────────────
+
+anim_thread: Optional[threading.Thread] = None
+anim_stop_event: Optional[threading.Event] = None
+
+
+def stop_animation() -> None:
+    """Stop the currently running animation thread if any."""
+    global anim_thread, anim_stop_event
+    if anim_thread is not None and anim_thread.is_alive():
+        if anim_stop_event is not None:
+            anim_stop_event.set()
+        anim_thread.join()
+    anim_thread = None
+    anim_stop_event = None
+
+
+def start_animation(
+    maze: list[list[str]],
+    path: list[tuple[int, int]],
+) -> None:
+    """
+    Start the path animation in a background daemon thread.
+
+    Args:
+        maze: The current maze grid.
+        path: Solution path to animate.
+    """
+    global anim_thread, anim_stop_event
+    stop_animation()
+    anim_stop_event = threading.Event()
+    anim_thread = threading.Thread(
+        target=animate_path,
+        args=(maze, path),
+        kwargs={"stop_event": anim_stop_event},
+        daemon=True,
+    )
+    anim_thread.start()
+
+
+# ─────────────────────────────────────────────
+#  Startup — validate args and config
+# ─────────────────────────────────────────────
+
+if len(sys.argv) != 2:
+    print("\033[91m[ERROR] Usage: python3 a_maze_ing.py config.txt\033[0m")
+    sys.exit(1)
+
+config = load_config(sys.argv[1])
+if config is None:
+    print("\033[91mFix config.txt and restart the program.\033[0m")
+    sys.exit(1)
+
+ROWS: int = config["rows"]
+COLS: int = config["cols"]
+ENTRY: tuple[int, int] = config["entry"]
+EXIT: tuple[int, int] = config["exit"]
+PERFECT: bool = config["perfect"]
+SEED: Optional[int] = config["seed"]
+OUTPUT_FILE: str = config["output_file"]
+
+mg, maze, path = build_maze(ROWS, COLS, ENTRY, EXIT, PERFECT, SEED)
+write_output(mg, OUTPUT_FILE)
+
+show_path: bool = True
+clear_maze_display()
+display_maze(maze)
+start_animation(maze, path)
+
+# ─────────────────────────────────────────────
+#  Main loop
+# ─────────────────────────────────────────────
+
+while True:
+    choice = display_menu()
+
+    if choice == "1":
+        config = load_config(sys.argv[1])
+        if config is None:
+            stop_animation()
+            print("\033[91mFix config.txt and restart the program.\033[0m")
+            sys.exit(1)
+
+        ROWS = config["rows"]
+        COLS = config["cols"]
+        ENTRY = config["entry"]
+        EXIT = config["exit"]
+        PERFECT = config["perfect"]
+        SEED = None          # force a new random maze on each re-generation
+        OUTPUT_FILE = config["output_file"]
+
+        stop_animation()
+        mg, maze, path = build_maze(ROWS, COLS, ENTRY, EXIT, PERFECT, SEED)
+        write_output(mg, OUTPUT_FILE)
+        show_path = True
+        clear_maze_display()
+        display_maze(maze)
+        start_animation(maze, path)
+
+    elif choice == "2":
+        stop_animation()
+        show_path = not show_path
+        clear_maze_display()
+        if show_path:
+            display_maze(maze, show_path=True, path=path)
+            start_animation(maze, path)
+        else:
+            display_maze(maze, show_path=False)
+
+    elif choice == "3":
+        stop_animation()
+        rotate_wall_color()
+        clear_maze_display()
+        display_maze(maze, show_path=show_path, path=path if show_path else None)
+
+    elif choice == "4":
+        stop_animation()
+        print("You've left the maze. See you next time!")
+        break
