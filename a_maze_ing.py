@@ -17,7 +17,9 @@ from display_maze import (
     rotate_wall_color,
     clear_maze_display,
     animate_path,
+    animate_generation,
     load_config,
+    MAZE_TOP_ROW,
 )
 from maze_generator import MazeGenerator
 from output_writer import write_output
@@ -30,9 +32,9 @@ def build_maze(
     exit_: tuple[int, int],
     perfect: bool,
     seed: Optional[int],
-) -> tuple[MazeGenerator, list[list[str]], list[tuple[int, int]]]:
+) -> tuple[MazeGenerator, list[list[str]], list[tuple[int, int]], list[tuple[int, int]]]:
     """
-    Instantiate MazeGenerator and return generator, grid and solution.
+    Instantiate MazeGenerator and return generator, grid, solution and carve steps.
 
     Args:
         rows:    Number of rows (odd integer).
@@ -43,7 +45,7 @@ def build_maze(
         seed:    Random seed for reproducibility.
 
     Returns:
-        Tuple of (MazeGenerator instance, 2D grid, solution path).
+        Tuple of (MazeGenerator instance, 2D grid, solution path, carve steps).
     """
     mg = MazeGenerator(
         rows=rows,
@@ -55,7 +57,8 @@ def build_maze(
     )
     grid = mg.get_grid()
     solution = mg.get_solution()
-    return mg, grid, solution
+    carve_steps = mg.get_carve_steps()
+    return mg, grid, solution, carve_steps
 
 
 def display_menu() -> str:
@@ -141,12 +144,15 @@ PERFECT: bool = config["perfect"]
 SEED: Optional[int] = config["seed"]
 OUTPUT_FILE: str = config["output_file"]
 
-mg, maze, path = build_maze(ROWS, COLS, ENTRY, EXIT, PERFECT, SEED)
+mg, maze, path, carve_steps = build_maze(ROWS, COLS, ENTRY, EXIT, PERFECT, SEED)
 write_output(mg, OUTPUT_FILE)
 
 show_path: bool = True
-clear_maze_display()
-display_maze(maze)
+animate_generation(maze, carve_steps)
+# maze is already drawn by animate_generation — just move cursor below it
+rows_count = len(maze)
+sys.stdout.write(f"\033[{MAZE_TOP_ROW + rows_count + 2};1H")
+sys.stdout.flush()
 start_animation(maze, path)
 
 # ─────────────────────────────────────────────
@@ -172,11 +178,13 @@ while True:
         OUTPUT_FILE = config["output_file"]
 
         stop_animation()
-        mg, maze, path = build_maze(ROWS, COLS, ENTRY, EXIT, PERFECT, SEED)
+        mg, maze, path, carve_steps = build_maze(ROWS, COLS, ENTRY, EXIT, PERFECT, SEED)
         write_output(mg, OUTPUT_FILE)
         show_path = True
-        clear_maze_display()
-        display_maze(maze)
+        animate_generation(maze, carve_steps)
+        rows_count = len(maze)
+        sys.stdout.write(f"\033[{MAZE_TOP_ROW + rows_count + 2};1H")
+        sys.stdout.flush()
         start_animation(maze, path)
 
     elif choice == "2":

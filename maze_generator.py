@@ -127,6 +127,8 @@ class MazeGenerator:
         # passage grid for display: 'W', ' ', 'E', 'X'
         self._grid: list[list[str]] = []
         self._solution: list[tuple[int, int]] = []
+        # ordered list of cells opened during generation (for animation)
+        self._carve_steps: list[tuple[int, int]] = []
 
         self._generate()
 
@@ -177,6 +179,19 @@ class MazeGenerator:
             moves.append(dir_map.get(key, "?"))
         return "".join(moves)
 
+    def get_carve_steps(self) -> list[tuple[int, int]]:
+        """
+        Return the ordered list of cells opened during maze generation.
+
+        These are recorded live during _generate(), so they exactly match
+        the final grid — no replay needed.
+
+        Returns:
+            list[tuple[int, int]]: Sequence of (row, col) cells opened,
+                in the order they were carved.
+        """
+        return list(self._carve_steps)
+
     def get_wall_grid(self) -> list[list[int]]:
         """
         Return a 2D grid of wall bitmasks (hex output format).
@@ -208,8 +223,10 @@ class MazeGenerator:
         # Step 1: start with all walls closed
         grid: list[list[str]] = [['W'] * cols for _ in range(rows)]
 
-        # Step 2: carve passages with recursive backtracker
+        # Step 2: carve passages with recursive backtracker (steps recorded live)
+        self._carve_steps = []
         grid[1][1] = ' '
+        self._carve_steps.append((1, 1))
         self._carve(grid, 1, 1)
 
         # Step 3: place the "42" pattern (fully closed cells)
@@ -222,11 +239,13 @@ class MazeGenerator:
         # Step 5: place entry and exit and carve a passage inward
         er, ec = self._entry
         grid[er][ec] = 'E'
-        self._open_inward(grid, er, ec)
+        self._carve_steps.append((er, ec))
+        self._open_inward(grid, er, ec, record_steps=True)
 
         xr, xc = self._exit
         grid[xr][xc] = 'X'
-        self._open_inward(grid, xr, xc)
+        self._carve_steps.append((xr, xc))
+        self._open_inward(grid, xr, xc, record_steps=True)
 
         self._grid = grid
 
@@ -252,11 +271,14 @@ class MazeGenerator:
         for dr, dc in directions:
             nr, nc = r + dr, c + dc
             if 1 <= nr < rows - 1 and 1 <= nc < cols - 1 and grid[nr][nc] == 'W':
-                grid[r + dr // 2][c + dc // 2] = ' '
+                wr, wc = r + dr // 2, c + dc // 2
+                grid[wr][wc] = ' '
                 grid[nr][nc] = ' '
+                self._carve_steps.append((wr, wc))
+                self._carve_steps.append((nr, nc))
                 self._carve(grid, nr, nc)
 
-    def _open_inward(self, grid: list[list[str]], r: int, c: int) -> None:
+    def _open_inward(self, grid: list[list[str]], r: int, c: int, record_steps: bool = False) -> None:
         """
         Carve an open passage from border cell (r,c) to the nearest interior room.
 
@@ -277,26 +299,24 @@ class MazeGenerator:
         is_corner = (on_top or on_bot) and (on_lft or on_rgt)
 
         if is_corner:
-            # For a corner, we need to open the cell diagonally inward.
-            # Walk along the row border until we can step into the interior,
-            # then walk inward to connect.
-            # Simpler: just open the cell (r±1, c) and (r, c±1) if they exist
-            # and are walls, then open the diagonal (r±1, c±1).
             dr = 1 if on_top else -1
             dc = 1 if on_lft else -1
-            # Open the two adjacent border cells
             if 0 <= r + dr < rows:
                 if grid[r + dr][c] == 'W':
                     grid[r + dr][c] = ' '
+                    if record_steps:
+                        self._carve_steps.append((r + dr, c))
             if 0 <= c + dc < cols:
                 if grid[r][c + dc] == 'W':
                     grid[r][c + dc] = ' '
-            # Open the interior diagonal cell to ensure connectivity
+                    if record_steps:
+                        self._carve_steps.append((r, c + dc))
             if 0 <= r + dr < rows and 0 <= c + dc < cols:
                 if grid[r + dr][c + dc] == 'W':
                     grid[r + dr][c + dc] = ' '
+                    if record_steps:
+                        self._carve_steps.append((r + dr, c + dc))
         else:
-            # Regular edge cell: determine single inward direction
             if on_top:
                 dr, dc = 1, 0
             elif on_bot:
@@ -306,12 +326,13 @@ class MazeGenerator:
             else:
                 dr, dc = 0, -1
 
-            # Walk inward until we reach an already-open interior cell
             nr, nc = r + dr, c + dc
             while 0 <= nr < rows and 0 <= nc < cols:
                 if grid[nr][nc] in (' ', 'E', 'X'):
                     break
                 grid[nr][nc] = ' '
+                if record_steps:
+                    self._carve_steps.append((nr, nc))
                 nr += dr
                 nc += dc
 

@@ -106,7 +106,7 @@ def load_config(path: str = CONFIG_PATH) -> Optional[dict]:  # type: ignore[type
     rows = int(raw["HEIGHT"])
     if not (MIN_SIZE <= rows <= MAX_SIZE):
         _err(f"HEIGHT={rows} out of range ({MIN_SIZE}-{MAX_SIZE}).")
-        return NoneZA
+        return None
     rows = _make_odd(rows)
 
     entry_parts = raw["ENTRY"].split(",")
@@ -255,6 +255,67 @@ def display_maze(
         line += BORDER
         print(line)
     print(BORDER * (cols + 2))
+
+
+def animate_generation(
+    maze: list[list[str]],
+    carve_steps: list[tuple[int, int]],
+    delay: float = 0.008,
+    stop_event: object = None,
+) -> None:
+    """
+    Animate the maze being carved from a full-wall grid, cell by cell.
+
+    Starts by displaying a fully-walled maze, then progressively reveals
+    each opened cell using absolute cursor positioning.
+
+    Args:
+        maze:        The final maze grid (used to identify entry/exit).
+        carve_steps: Ordered (row, col) cells opened during generation.
+        delay:       Seconds between each carved cell reveal.
+        stop_event:  threading.Event — stops animation immediately when set.
+    """
+    rows = len(maze)
+    cols = len(maze[0]) if rows else 0
+    wall = get_wall()
+    path_ch = PATH
+    entry_ch = get_entry()
+    exit_ch = get_exit()
+
+    # Draw fully-walled starting state
+    sys.stdout.write("\033[2J\033[H")
+    print(BORDER * (cols + 2))
+    for r in range(rows):
+        line = BORDER
+        for c in range(cols):
+            cell = maze[r][c]
+            if cell == 'E':
+                line += wall
+            elif cell == 'X':
+                line += wall
+            else:
+                line += wall
+        line += BORDER
+        print(line)
+    print(BORDER * (cols + 2))
+    sys.stdout.flush()
+
+    # Reveal carved cells one by one
+    for r, c in carve_steps:
+        if stop_event is not None and stop_event.is_set():  # type: ignore[attr-defined]
+            return
+        cell = maze[r][c]
+        if cell == 'E':
+            char = entry_ch
+        elif cell == 'X':
+            char = exit_ch
+        else:
+            char = path_ch
+        term_row = MAZE_TOP_ROW + 1 + r
+        term_col = c * 2 + 3
+        sys.stdout.write(f"\033[s\033[{term_row};{term_col}f{char}\033[u")
+        sys.stdout.flush()
+        time.sleep(delay)
 
 
 def animate_path(
