@@ -1,13 +1,3 @@
-"""
-a_maze_ing.py — Entry point for A-Maze-ing.
-
-Usage:
-    python3 a_maze_ing.py config.txt
-
-Visual part:    display_maze.py
-Algorithm part: maze_generator.py  (MazeGenerator class)
-"""
-
 import sys
 import threading
 from typing import Optional
@@ -33,20 +23,6 @@ def build_maze(
     perfect: bool,
     seed: Optional[int],
 ) -> tuple[MazeGenerator, list[list[str]], list[tuple[int, int]], list[tuple[int, int]]]:
-    """
-    Instantiate MazeGenerator and return generator, grid, solution and carve steps.
-
-    Args:
-        rows:    Number of rows (odd integer).
-        cols:    Number of columns (odd integer).
-        entry:   (row, col) of the entry cell on the border.
-        exit_:   (row, col) of the exit cell on the border.
-        perfect: Whether to generate a perfect maze.
-        seed:    Random seed for reproducibility.
-
-    Returns:
-        Tuple of (MazeGenerator instance, 2D grid, solution path, carve steps).
-    """
     mg = MazeGenerator(
         rows=rows,
         cols=cols,
@@ -62,35 +38,23 @@ def build_maze(
 
 
 def display_menu() -> str:
-    """
-    Print the interactive menu and return the validated user choice.
-
-    Returns:
-        A single character string: '1', '2', '3', or '4'.
-    """
-    print("=== A-Maze-ing ===")
+    print("\n=== A-Maze-ing ===")
     print("1. Re-generate a new maze")
     print("2. Show/Hide path from entry to exit")
     print("3. Rotate maze colors")
     print("4. Quit")
-    choice = input("Choice? (1-4): ")
-    while choice not in ("1", "2", "3", "4"):
-        sys.stdout.write("\033[1A\033[2K")
-        sys.stdout.flush()
-        choice = input("Choice? (1-4): ")
-    return choice
+    while True:
+        choice = input("Choice? (1-4): ").strip()
+        if choice in ("1", "2", "3", "4"):
+            return choice
+        print("Invalid choice. Please enter 1, 2, 3, or 4.")
 
-
-# ─────────────────────────────────────────────
-#  Animation thread management
-# ─────────────────────────────────────────────
 
 anim_thread: Optional[threading.Thread] = None
 anim_stop_event: Optional[threading.Event] = None
 
 
 def stop_animation() -> None:
-    """Stop the currently running animation thread if any."""
     global anim_thread, anim_stop_event
     if anim_thread is not None and anim_thread.is_alive():
         if anim_stop_event is not None:
@@ -104,13 +68,6 @@ def start_animation(
     maze: list[list[str]],
     path: list[tuple[int, int]],
 ) -> None:
-    """
-    Start the path animation in a background daemon thread.
-
-    Args:
-        maze: The current maze grid.
-        path: Solution path to animate.
-    """
     global anim_thread, anim_stop_event
     stop_animation()
     anim_stop_event = threading.Event()
@@ -122,10 +79,6 @@ def start_animation(
     )
     anim_thread.start()
 
-
-# ─────────────────────────────────────────────
-#  Startup — validate args and config
-# ─────────────────────────────────────────────
 
 if len(sys.argv) != 2:
     print("\033[91m[ERROR] Usage: python3 a_maze_ing.py config.txt\033[0m")
@@ -149,15 +102,10 @@ write_output(mg, OUTPUT_FILE)
 
 show_path: bool = True
 animate_generation(maze, carve_steps)
-# maze is already drawn by animate_generation — just move cursor below it
 rows_count = len(maze)
 sys.stdout.write(f"\033[{MAZE_TOP_ROW + rows_count + 2};1H")
 sys.stdout.flush()
 start_animation(maze, path)
-
-# ─────────────────────────────────────────────
-#  Main loop
-# ─────────────────────────────────────────────
 
 while True:
     choice = display_menu()
@@ -174,7 +122,7 @@ while True:
         ENTRY = config["entry"]
         EXIT = config["exit"]
         PERFECT = config["perfect"]
-        SEED = None          # force a new random maze on each re-generation
+        SEED = None
         OUTPUT_FILE = config["output_file"]
 
         stop_animation()

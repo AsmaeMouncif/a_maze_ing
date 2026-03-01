@@ -1,19 +1,16 @@
-"""
-display_maze.py — Visual representation module for A-Maze-ing.
-
-Handles:
-- Config file loading and validation
-- Terminal rendering with ANSI colors
-- Solution path animation
-- Wall color rotation
-
-Maze generation is handled by maze_generator.py (MazeGenerator class).
-"""
-
 import sys
 import os
 import time
-from typing import Optional
+from typing import Optional, TypedDict
+
+class ConfigDict(TypedDict):
+    rows: int
+    cols: int
+    entry: tuple[int, int]
+    exit: tuple[int, int]
+    output_file: str
+    perfect: bool
+    seed: Optional[int]
 
 RESET: str = "\033[0m"
 PATH: str = "\033[48;5;232m" + "  " + RESET
@@ -30,6 +27,8 @@ WALL_COLORS: list[tuple[str, str, str, str]] = [
     ("\033[48;5;124m",  "\033[48;5;217m",  "Dark Red",     "Light Salmon"),
 ]
 
+PATTERN_42_COLOR: str = "\033[48;5;226m"
+
 current_color_index: int = 0
 MAZE_TOP_ROW: int = 1
 
@@ -41,31 +40,15 @@ REQUIRED_KEYS: tuple[str, ...] = (
 )
 
 
-# ─────────────────────────────────────────────
-#  Config loader
-# ─────────────────────────────────────────────
-
 def _make_odd(n: int) -> int:
-    """Return n if odd, else n + 1."""
     return n if n % 2 == 1 else n + 1
 
 
 def _err(msg: str) -> None:
-    """Print a red formatted error message."""
     print(f"\033[91m[ERROR] {msg}\033[0m")
 
 
-def load_config(path: str = CONFIG_PATH) -> Optional[dict]:  # type: ignore[type-arg]
-    """
-    Read and validate the configuration file.
-
-    Args:
-        path: Path to the config file (default: 'config.txt').
-
-    Returns:
-        Dict with keys: rows, cols, entry, exit, output_file, perfect, seed.
-        Returns None and prints an error if any validation fails.
-    """
+def load_config(path: str = CONFIG_PATH) -> Optional[ConfigDict]:
     if not os.path.exists(path):
         _err(f"Config file '{path}' not found.")
         return None
@@ -171,32 +154,23 @@ def load_config(path: str = CONFIG_PATH) -> Optional[dict]:  # type: ignore[type
     }
 
 
-# ─────────────────────────────────────────────
-#  Color helpers
-# ─────────────────────────────────────────────
-
 def get_wall() -> str:
-    """Return ANSI wall character with current color."""
     return WALL_COLORS[current_color_index][0] + "  " + RESET
 
 
 def get_trace() -> str:
-    """Return ANSI path trace character with current color."""
     return WALL_COLORS[current_color_index][1] + "  " + RESET
 
 
 def get_entry() -> str:
-    """Return ANSI entry marker character (same color as path trace)."""
     return get_trace()
 
 
 def get_exit() -> str:
-    """Return ANSI exit marker character (same color as path trace)."""
     return get_trace()
 
 
 def rotate_wall_color() -> None:
-    """Cycle to the next wall/trace color scheme and print its name."""
     global current_color_index
     current_color_index = (current_color_index + 1) % len(WALL_COLORS)
     name_wall = WALL_COLORS[current_color_index][2]
@@ -204,38 +178,22 @@ def rotate_wall_color() -> None:
     print(f"\033[96m[Color] {name_wall} / {name_trace}\033[0m")
 
 
-# ─────────────────────────────────────────────
-#  Terminal helpers
-# ─────────────────────────────────────────────
-
 def clear_maze_display() -> None:
-    """Clear the terminal screen and move cursor to top-left."""
     sys.stdout.write("\033[2J\033[H")
     sys.stdout.flush()
 
-
-# ─────────────────────────────────────────────
-#  Rendering
-# ─────────────────────────────────────────────
 
 def display_maze(
     maze: list[list[str]],
     show_path: bool = False,
     path: Optional[list[tuple[int, int]]] = None
 ) -> None:
-    """
-    Render the maze to the terminal using ANSI color blocks.
-
-    Args:
-        maze:      2D grid ('W'=wall, ' '=open, 'E'=entry, 'X'=exit).
-        show_path: If True, highlight the solution path cells.
-        path:      List of (row, col) tuples for the solution path.
-    """
     cols = len(maze[0])
     wall = get_wall()
     trace = get_trace()
     entry_ch = get_entry()
     exit_ch = get_exit()
+    pattern_ch = PATTERN_42_COLOR + "  " + RESET
     path_set: set[tuple[int, int]] = set(path) if path else set()
 
     print(BORDER * (cols + 2))
@@ -246,6 +204,8 @@ def display_maze(
                 line += entry_ch
             elif cell == 'X':
                 line += exit_ch
+            elif cell == '*':
+                line += pattern_ch
             elif show_path and (r, c) in path_set:
                 line += trace
             elif cell == 'W':
@@ -260,29 +220,17 @@ def display_maze(
 def animate_generation(
     maze: list[list[str]],
     carve_steps: list[tuple[int, int]],
-    delay: float = 0.008,
+    delay: float = 0.002,
     stop_event: object = None,
 ) -> None:
-    """
-    Animate the maze being carved from a full-wall grid, cell by cell.
-
-    Starts by displaying a fully-walled maze, then progressively reveals
-    each opened cell using absolute cursor positioning.
-
-    Args:
-        maze:        The final maze grid (used to identify entry/exit).
-        carve_steps: Ordered (row, col) cells opened during generation.
-        delay:       Seconds between each carved cell reveal.
-        stop_event:  threading.Event — stops animation immediately when set.
-    """
     rows = len(maze)
     cols = len(maze[0]) if rows else 0
     wall = get_wall()
     path_ch = PATH
     entry_ch = get_entry()
     exit_ch = get_exit()
+    pattern_ch = PATTERN_42_COLOR + "  " + RESET
 
-    # Draw fully-walled starting state
     sys.stdout.write("\033[2J\033[H")
     print(BORDER * (cols + 2))
     for r in range(rows):
@@ -300,7 +248,6 @@ def animate_generation(
     print(BORDER * (cols + 2))
     sys.stdout.flush()
 
-    # Reveal carved cells one by one
     for r, c in carve_steps:
         if stop_event is not None and stop_event.is_set():  # type: ignore[attr-defined]
             return
@@ -309,6 +256,8 @@ def animate_generation(
             char = entry_ch
         elif cell == 'X':
             char = exit_ch
+        elif cell == '*':
+            char = pattern_ch
         else:
             char = path_ch
         term_row = MAZE_TOP_ROW + 1 + r
@@ -322,23 +271,14 @@ def animate_path(
     maze: list[list[str]],
     path: list[tuple[int, int]],
     delay: float = 0.03,
-    stop_event: object = None,
+    stop_event: Optional[object] = None,
 ) -> None:
-    """
-    Animate the solution path cell by cell with absolute cursor positioning.
-
-    Args:
-        maze:       2D maze grid.
-        path:       Ordered list of (row, col) cells to animate.
-        delay:      Seconds to wait between each animated cell.
-        stop_event: threading.Event — stops animation immediately when set.
-    """
     trace = get_trace()
 
     for r, c in path:
         if stop_event is not None and stop_event.is_set():  # type: ignore[attr-defined]
             return
-        if maze[r][c] == 'W':
+        if maze[r][c] == 'W' or maze[r][c] == '*':
             continue
         term_row = MAZE_TOP_ROW + 1 + r
         term_col = c * 2 + 3
