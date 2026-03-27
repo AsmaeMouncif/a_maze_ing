@@ -1,3 +1,5 @@
+"""Logo pattern module for embedding the '42' pattern into the maze."""
+
 _DIGIT_4: list[list[int]] = [
     [1, 0, 0],
     [1, 0, 0],
@@ -22,6 +24,15 @@ _LOGO_S: int = 2
 
 
 def logo_fits(rows: int, cols: int) -> bool:
+    """Check whether the '42' logo fits within the given maze dimensions.
+
+    Args:
+        rows: Number of rows in the maze grid.
+        cols: Number of columns in the maze grid.
+
+    Returns:
+        True if the logo can be drawn, False if the maze is too small.
+    """
     return (
         rows >= _LOGO_H * _LOGO_S + 2
         and cols >= (_LOGO_W4 + _LOGO_GAP + _LOGO_W2) * _LOGO_S + 2
@@ -29,6 +40,19 @@ def logo_fits(rows: int, cols: int) -> bool:
 
 
 def get_logo_cells(rows: int, cols: int) -> set[tuple[int, int]]:
+    """Compute the set of maze cells that form the '42' logo pattern.
+
+    The logo is centred inside the maze. Each digit is drawn at scale
+    _LOGO_S (2x zoom) so that cells are clearly visible.
+
+    Args:
+        rows: Number of rows in the maze grid.
+        cols: Number of columns in the maze grid.
+
+    Returns:
+        A set of (row, col) positions to keep as walls for the logo.
+        Returns an empty set when the logo does not fit.
+    """
     if not logo_fits(rows, cols):
         return set()
 

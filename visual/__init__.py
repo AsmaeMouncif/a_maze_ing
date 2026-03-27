@@ -1,3 +1,10 @@
+"""Visual package for the A-Maze-ing maze generator.
+
+Exports all public symbols needed by the main program and maze menu:
+configuration loading, color management, logo utilities, display and
+animation functions, and terminal helpers.
+"""
+
 from visual.config import load_config
 from visual.colors import (
     WALL_COLORS,

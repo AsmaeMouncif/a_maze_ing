@@ -1,3 +1,5 @@
+"""Configuration loader for the A-Maze-ing maze generator."""
+
 import os
 from typing import Optional
 
@@ -11,21 +13,62 @@ REQUIRED_KEYS: tuple[str, ...] = (
 
 
 def _make_odd(n: int) -> int:
+    """Round n up to the nearest odd integer.
+
+    Args:
+        n: Integer value to adjust.
+
+    Returns:
+        n if already odd, otherwise n + 1.
+    """
     return n if n % 2 == 1 else n + 1
 
 
 def _err(msg: str) -> None:
+    """Print a formatted error message to stdout.
+
+    Args:
+        msg: Human-readable error description to display.
+    """
     print(f"\033[91m[ERROR] {msg}\033[0m")
 
 
-def load_config(path: str = CONFIG_PATH) -> Optional[dict]:
+def load_config(
+    path: str = CONFIG_PATH,
+) -> Optional[dict[str, object]]:
+    """Parse and validate a maze configuration file.
+
+    The file must contain one KEY=VALUE pair per line. Lines starting
+    with '#' are treated as comments and ignored. All six mandatory
+    keys must be present and hold valid values.
+
+    Args:
+        path: Path to the configuration file.
+            Defaults to CONFIG_PATH ('config.txt').
+
+    Returns:
+        A dictionary with the validated configuration on success::
+
+            {
+                "rows":        int,
+                "cols":        int,
+                "entry":       tuple[int, int],   # (row, col)
+                "exit":        tuple[int, int],   # (row, col)
+                "output_file": str,
+                "perfect":     bool,
+                "seed":        Optional[int],
+            }
+
+        Returns None if the file is missing, unreadable, or contains
+        any invalid or out-of-range values.
+    """
     if not os.path.exists(path):
         _err(f"Config file '{path}' not found.")
         return None
 
     raw: dict[str, str] = {}
     try:
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             for line_num, line in enumerate(f, 1):
                 line = line.strip()
                 if not line or line.startswith("#"):
@@ -60,13 +103,17 @@ def load_config(path: str = CONFIG_PATH) -> Optional[dict]:
         return None
     rows_raw = int(raw["HEIGHT"])
     if not (MIN_SIZE <= rows_raw <= MAX_SIZE):
-        _err(f"HEIGHT={rows_raw} out of range ({MIN_SIZE}-{MAX_SIZE}).")
+        _err(
+            f"HEIGHT={rows_raw} out of range ({MIN_SIZE}-{MAX_SIZE})."
+        )
         return None
 
     entry_parts = raw["ENTRY"].split(",")
     if (
         len(entry_parts) != 2
-        or not all(p.strip().lstrip("-").isdigit() for p in entry_parts)
+        or not all(
+            p.strip().lstrip("-").isdigit() for p in entry_parts
+        )
     ):
         _err(
             f"Invalid ENTRY '{raw['ENTRY']}': expected col,row "
@@ -90,7 +137,9 @@ def load_config(path: str = CONFIG_PATH) -> Optional[dict]:
     exit_parts = raw["EXIT"].split(",")
     if (
         len(exit_parts) != 2
-        or not all(p.strip().lstrip("-").isdigit() for p in exit_parts)
+        or not all(
+            p.strip().lstrip("-").isdigit() for p in exit_parts
+        )
     ):
         _err(
             f"Invalid EXIT '{raw['EXIT']}': expected col,row "
@@ -115,8 +164,8 @@ def load_config(path: str = CONFIG_PATH) -> Optional[dict]:
         _err("ENTRY and EXIT must not be the same cell.")
         return None
 
-    cols = _make_odd(cols_raw)
-    rows = _make_odd(rows_raw)
+    cols: int = _make_odd(cols_raw)
+    rows: int = _make_odd(rows_raw)
 
     if entry_col == cols_raw - 1:
         entry_col = cols - 1
@@ -133,14 +182,19 @@ def load_config(path: str = CONFIG_PATH) -> Optional[dict]:
 
     perfect_str = raw["PERFECT"].strip().lower()
     if perfect_str not in ("true", "false"):
-        _err(f"Invalid PERFECT '{raw['PERFECT']}': must be True or False.")
+        _err(
+            f"Invalid PERFECT '{raw['PERFECT']}': "
+            f"must be True or False."
+        )
         return None
-    perfect = perfect_str == "true"
+    perfect: bool = perfect_str == "true"
 
     seed: Optional[int] = None
     if "SEED" in raw:
         if not raw["SEED"].lstrip("-").isdigit():
-            _err(f"Invalid SEED '{raw['SEED']}': must be an integer.")
+            _err(
+                f"Invalid SEED '{raw['SEED']}': must be an integer."
+            )
             return None
         seed = int(raw["SEED"])
 

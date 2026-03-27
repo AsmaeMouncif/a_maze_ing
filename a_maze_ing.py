@@ -1,6 +1,6 @@
 import sys
-sys.dont_write_bytecode = True
 from maze_menu import run
+sys.dont_write_bytecode = True
 
 
 def main() -> None:
