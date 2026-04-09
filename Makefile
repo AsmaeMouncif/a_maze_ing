@@ -1,22 +1,26 @@
-all: run
+NAME = a_maze_ing.py
+CONFIG = config.txt
+PYTHON = python3
+
+install:
+	pip install -r requirements.txt
 
 run:
-	python3 a_maze_ing.py config.txt
+	$(PYTHON) $(NAME) $(CONFIG)
+
+debug:
+	$(PYTHON) -m pdb $(NAME) $(CONFIG)
 
 clean:
-	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-
-fclean: clean
-	rm -f maze.txt
-
-re: fclean run
+	find . -type d -name "__pycache__" -exec rm -rf {} +
+	find . -type d -name ".mypy_cache" -exec rm -rf {} +
 
 lint:
-	flake8 . --ignore-missing-imports
+	flake8 .
 	mypy . --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
 
 lint-strict:
-	flake8 . 
+	flake8 .
 	mypy . --strict
 
-.PHONY: all run clean fclean re lint lint-strict
+.PHONY: install run debug clean lint lint-strict

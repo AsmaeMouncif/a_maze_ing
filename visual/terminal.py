@@ -65,6 +65,6 @@ def flush_input() -> None:
     """Clear any pending keystrokes from stdin to prevent accidental input
     during animations or delays."""
     try:
-        termios.tcflush(sys.stdin, termios.TCIFLUSH)
+        termios.tcflush(sys.stdin, termios.TCIFLUSH)  # type: ignore
     except Exception:
         pass

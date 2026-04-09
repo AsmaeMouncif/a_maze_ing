@@ -132,7 +132,7 @@ def animate_generation(
 def animate_path(
     maze: list[list[str]],
     path: list[tuple[int, int]],
-    delay: float = 0.03,
+    delay: float = 0.20,
     stop_event: Optional[Event] = None,
 ) -> None:
     """Animate the solution path through the maze cell by cell.
