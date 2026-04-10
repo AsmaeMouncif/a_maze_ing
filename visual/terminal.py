@@ -2,8 +2,11 @@
 
 import sys
 import os
-import termios
 
+IS_WINDOWS = sys.platform == "win32"
+
+if not IS_WINDOWS:
+    import termios
 
 def get_terminal_size() -> tuple[int, int]:
     """Retrieve the current terminal dimensions.

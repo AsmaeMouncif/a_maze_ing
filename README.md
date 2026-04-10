@@ -1,4 +1,4 @@
-*This project has been created as part of the 42 curriculum by \<moboulir>[, \<asmounci\>].*
+*This project has been created as part of the 42 curriculum by \<moboulir>, \<asmounci>.*
 
 ---
 
@@ -6,7 +6,9 @@
 
 ## Description
 
-A-Maze-ing is a terminal-based maze generator and solver written in Python. The program reads a configuration file, generates a random maze using the **Recursive Backtracker** algorithm, finds the shortest path from entry to exit using BFS, and saves the result to an output file. It also provides a fully interactive terminal visual with real-time animations, 7 color themes, and an embedded **42** logo pattern made of wall cells.
+A-Maze-ing is a terminal-based maze generator and solver written in Python. The program reads a configuration file, generates a random maze using the **Recursive Backtracker** algorithm, finds the shortest path from entry to exit using BFS, and saves the result to an output file.
+
+It also provides a fully interactive terminal visual with real-time animations, 7 color themes, and an embedded **42** logo pattern made of wall cells.
 
 Key features:
 - Perfect maze mode (exactly one path between any two cells)
@@ -24,7 +26,7 @@ Key features:
 
 - Python 3.10 or later
 - Unix-like terminal with ANSI escape code support
-- No external libraries required for the main program
+- No external libraries required for the main program (`flake8` and `mypy` for linting only)
 
 ### Run
 
@@ -105,7 +107,7 @@ Each cell is encoded as one hexadecimal digit representing which of its 4 walls 
 | 2 | South |
 | 3 | West |
 
-Cells are stored row by row, one row per line. After an empty line, the file contains 3 more lines: entry coordinates, exit coordinates, and the shortest path as a sequence of `N`, `S`, `E`, `W` letters.
+Cells are stored row by row, one row per line. After an empty line, the file contains 3 more lines: entry coordinates (col,row), exit coordinates (col,row), and the shortest path as a sequence of `N`, `S`, `E`, `W` letters.
 
 ---
 
@@ -122,11 +124,150 @@ The algorithm works as follows:
 
 **Why this algorithm?**
 
-- It produces mazes with a single long winding path (perfect mazes), which are visually interesting and challenging to solve.
-- It maps naturally to an animation: each carve step can be shown in real time, making the generation process engaging to watch.
-- It is simple to implement correctly, easy to control with a seed for reproducibility, and efficient enough for the maze sizes supported (up to 99×99).
-- The deep, river-like corridors it creates contrast clearly with the solid **42** logo wall pattern at the center.
+- It produces mazes with a single long winding path (perfect mazes), visually interesting and challenging to solve.
+- It maps naturally to an animation: each carve step can be shown in real time.
+- It is simple to implement correctly and easy to control with a seed for reproducibility.
+- The deep, river-like corridors it creates contrast clearly with the solid **42** logo wall pattern.
 
-In imperfect mode (`PERFECT=False`), extra walls are randomly removed — but only at valid passage positions (where exactly one of row/column is even) to avoid creating visual artefacts.
+In imperfect mode (`PERFECT=False`), extra walls are randomly removed — but only if the removal does not create a 2x2 open area.
 
 ---
+
+## Reusable Module — `mazegen`
+
+The maze generation logic is packaged as a standalone pip-installable module called `mazegen`. It exposes a single class `MazeGenerator` that can be imported and used in any Python project independently of this program.
+
+### Install the package
+
+```bash
+# From the pre-built wheel at the repo root:
+pip install mazegen-1.0.0-py3-none-any.whl
+```
+
+### Build from source
+
+```bash
+python3 -m venv build_env
+source build_env/bin/activate
+pip install build
+python -m build
+deactivate
+```
+
+### Test in a clean environment
+
+```bash
+python3 -m venv test_env
+source test_env/bin/activate
+pip install dist/mazegen-1.0.0-py3-none-any.whl
+python3 -c "
+from mazegen import MazeGenerator
+gen = MazeGenerator(width=21, height=15, seed=42)
+gen.generate()
+path = gen.solve()
+print('OK — path:', len(path), 'cells')
+gen.save('test_output.txt')
+"
+deactivate
+```
+
+### Basic usage
+
+```python
+from mazegen import MazeGenerator
+
+gen = MazeGenerator(width=21, height=15, seed=42)
+gen.generate()
+
+path = gen.solve()
+print(f"Path: {len(path)} cells")
+print(f"Directions: {gen.path_directions()}")
+
+gen.save("maze.txt")
+```
+
+### Custom parameters
+
+```python
+gen = MazeGenerator(
+    width=31,
+    height=21,
+    entry=(0, 0),       # (row, col), must be on the border
+    exit_=(20, 30),     # (row, col), must be on the border
+    perfect=True,
+    seed=1234,
+)
+gen.generate()
+path = gen.solve()
+```
+
+### Accessing the generated structure
+
+| Attribute / Method | Type | Description |
+|---|---|---|
+| `gen.maze` | `list[list[str]]` | 2D grid: `'W'`=wall, `' '`=open, `'E'`=entry, `'X'`=exit |
+| `gen.rows` / `gen.cols` | `int` | Actual grid dimensions (rounded up to odd) |
+| `gen.carve_steps` | `list[tuple[int,int]]` | Ordered list of cells carved during generation |
+| `gen.solve()` | `list[tuple[int,int]]` | Shortest path from entry to exit (BFS) |
+| `gen.path_directions()` | `str` | Path as N/S/E/W string |
+| `gen.save(path)` | `None` | Save hex-encoded maze to file |
+
+---
+
+## Team and Project Management
+
+### Roles
+
+| Member | Role |
+|--------|------|
+| `moboulir` | Maze generation algorithm, output file format, package architecture |
+| `asmounci` | Visual display, animation, color system, terminal menu |
+
+### Planning
+
+**Anticipated planning:**
+- Days 1–3: Setup, config parsing, generation algorithm
+- Days 4–7: Output file format and BFS solver
+- Days 8–13: Visual display, animation, terminal menu, arrow key interactions
+- Days 14–17: Logo embedding, color themes, edge case handling
+- Days 18–19: `mazegen` package, flake8 / mypy fixes
+- Day 20: README, final tests, cleanup
+
+**How it evolved:**
+- The project took 20 days in total instead of the initially planned week.
+- The logo embedding took significantly more time than expected — keeping it isolated without breaking maze connectivity was tricky.
+- Animation and terminal rendering required a lot of debugging due to escape code quirks.
+- The `mazegen` package refactoring into a class, writing the README, running flake8 and mypy to fix all warnings, and testing everything end-to-end all happened on the last day.
+
+### What worked well
+- The Recursive Backtracker produces great-looking mazes and maps naturally to the animation.
+- The color rotation system and the 7 themes were satisfying to build.
+- Working in parallel on generation and display saved a lot of time.
+
+### What could be improved
+- Supporting multiple generation algorithms (Prim's, Kruskal's) would make the maze variety richer and is a natural next step.
+- The entry and exit positions are currently set in config — an interactive arrow-key selector directly in the terminal would improve the user experience.
+
+### Tools used
+- `mypy` and `flake8` for static analysis and style checking
+- `pdb` for debugging
+- `build` for packaging
+
+---
+
+## Resources
+
+- [Maze generation algorithms — Wikipedia](https://en.wikipedia.org/wiki/Maze_generation_algorithm)
+- [Recursive Backtracker — Jamis Buck's blog](http://weblog.jamisbuck.org/2010/12/27/maze-generation-recursive-backtracking)
+- [DFS and BFS algorithms — tutorials and visual explanations](https://www.youtube.com/results?search_query=dfs+bfs+algorithm+tutorial)
+- [Python official documentation](https://docs.python.org/3/)
+- [W3Schools Python reference](https://www.w3schools.com/python/)
+- [Stack Overflow — debugging and syntax questions](https://stackoverflow.com)
+- [ANSI 256 color codes — ColorPalette v0.1.10](https://share.google/C9GX8S8qLQFYkWiqP)
+- [Python packaging guide](https://packaging.python.org/en/latest/tutorials/packaging-projects/)
+- [mypy documentation](https://mypy.readthedocs.io/)
+- [PEP 257 — Docstring conventions](https://peps.python.org/pep-0257/)
+
+### AI Usage
+
+During this project, we used AI as a learning and support tool to ask general questions when we were stuck — not to generate code. We always read and understood the answers before applying anything ourselves.
