@@ -2,11 +2,8 @@
 
 import sys
 import os
+import termios
 
-IS_WINDOWS = sys.platform == "win32"
-
-if not IS_WINDOWS:
-    import termios
 
 def get_terminal_size() -> tuple[int, int]:
     """Retrieve the current terminal dimensions.
@@ -68,6 +65,6 @@ def flush_input() -> None:
     """Clear any pending keystrokes from stdin to prevent accidental input
     during animations or delays."""
     try:
-        termios.tcflush(sys.stdin, termios.TCIFLUSH)  # type: ignore
+        termios.tcflush(sys.stdin.fileno(), termios.TCIFLUSH)
     except Exception:
         pass

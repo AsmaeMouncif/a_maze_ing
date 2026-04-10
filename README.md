@@ -228,7 +228,7 @@ path = gen.solve()
 **Anticipated planning:**
 - Days 1–3: Setup, config parsing, generation algorithm
 - Days 4–7: Output file format and BFS solver
-- Days 8–13: Visual display, animation, terminal menu, arrow key interactions
+- Days 8–13: Visual display, animation, terminal menu
 - Days 14–17: Logo embedding, color themes, edge case handling
 - Days 18–19: `mazegen` package, flake8 / mypy fixes
 - Day 20: README, final tests, cleanup

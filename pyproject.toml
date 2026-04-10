@@ -7,7 +7,6 @@ name = "mazegen"
 version = "1.0.0"
 description = "Reusable maze generator using the Recursive Backtracker algorithm"
 requires-python = ">=3.10"
-readme = "README_mazegen.md"
 license = { text = "MIT" }
 
 [tool.setuptools.packages.find]

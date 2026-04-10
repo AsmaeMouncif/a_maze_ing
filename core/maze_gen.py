@@ -301,7 +301,7 @@ def write_maze_file(
     def is_wall(r: int, c: int, dr: int, dc: int) -> bool:
         """Return True when the wall in direction (dr, dc) is closed."""
         if maze[r][c] == 'W':
-            return True    
+            return True
         if (r, c) == entry and (dr, dc) == entry_out:
             return False
         if (r, c) == exit_ and (dr, dc) == exit_out:
